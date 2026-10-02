@@ -116,7 +116,7 @@ test("HTTP API supports health and project CRUD", async () => {
       assert.equal(response.status, 200);
       const health = (await response.json()).data;
       assert.equal(health.ready, true);
-      assert.equal(health.version, "0.6.0");
+      assert.equal(health.version, "0.7.0");
 
       response = await fetch(`${base}/projects`, {
         method: "POST",
@@ -129,6 +129,13 @@ test("HTTP API supports health and project CRUD", async () => {
       response = await fetch(`${base}/projects/${created.id}`);
       assert.equal(response.status, 200);
       assert.equal((await response.json()).data.project.name, "API Project");
+
+      response = await fetch(`${base}/projects/${created.id}/export`);
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("content-type"), "application/zip");
+      assert.match(response.headers.get("content-disposition") ?? "", /API-Project|api-project/i);
+      const archive = Buffer.from(await response.arrayBuffer());
+      assert.equal(archive.readUInt32LE(0), 0x04034b50);
 
       created.name = "API Updated";
       response = await fetch(`${base}/projects/${created.id}`, {

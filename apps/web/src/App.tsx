@@ -83,6 +83,7 @@ export function App() {
   const [message, setMessage] = useState("Ready");
   const [historyVersion, setHistoryVersion] = useState(0);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -137,6 +138,28 @@ export function App() {
   const redo = () => {
     const next = history.redo(project);
     if (next !== project) { setProject(next); setDirty(true); setMessage("Redo"); setHistoryVersion(value => value + 1); }
+  };
+
+  const exportProject = async () => {
+    if (connection !== "connected") return setMessage("Export requires the local server");
+    if (exporting) return;
+    setExporting(true);
+    setMessage("Exporting production project...");
+    try {
+      const response = await fetch(`/api/v1/projects/${encodeURIComponent(project.id)}/export`);
+      if (!response.ok) throw new Error(`Export failed with HTTP ${response.status}`);
+      const blob = await response.blob();
+      const disposition = response.headers.get("content-disposition") ?? "";
+      const match = disposition.match(/filename="([^"]+)"/);
+      const fileName = match?.[1] ?? `${project.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "ui-creator"}-export.zip`;
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url; anchor.download = fileName; document.body.appendChild(anchor); anchor.click(); anchor.remove();
+      URL.revokeObjectURL(url);
+      setMessage(`Exported ${fileName}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Export failed");
+    } finally { setExporting(false); }
   };
 
   const save = async () => {
@@ -247,13 +270,13 @@ export function App() {
   return (
     <div className="app-shell" style={{ "--left-panel": `${leftPanel.size}px`, "--right-panel": `${rightPanel.size}px` } as CSSProperties}>
       <header className="topbar">
-        <div className="brand"><div className="brand-mark">UI</div><strong>Creator</strong><span className="version">v0.6.0</span></div>
+        <div className="brand"><div className="brand-mark">UI</div><strong>Creator</strong><span className="version">v0.7.0</span></div>
         <div className="project-crumbs"><button type="button">{project.name}{dirty ? " *" : ""}</button><span>/</span><button type="button">{activePageId ? project.pages[activePageId]?.name : "No page"}</button><span>/</span><span className="theme-label">{project.settings.activeThemeId ? project.themes[project.settings.activeThemeId]?.name : "No theme"}</span></div>
         <div className="topbar-actions">
           <button className="top-button" type="button" onClick={undo} disabled={!history.canUndo}>Undo</button>
           <button className="top-button" type="button" onClick={redo} disabled={!history.canRedo}>Redo</button>
           <span className={`connection ${connection}`}>{connection === "connected" ? "Local server" : "Offline preview"}</span>
-          <button className="top-button" type="button" onClick={() => setPreviewOpen(true)}>Preview</button><button className="top-button" type="button">Export</button>
+          <button className="top-button" type="button" onClick={() => setPreviewOpen(true)}>Preview</button><button className="top-button" type="button" onClick={() => void exportProject()} disabled={exporting}>{exporting ? "Exporting..." : "Export"}</button>
           <button className="top-button primary" type="button" onClick={() => void save()} disabled={!dirty}>Save</button>
         </div>
       </header>
