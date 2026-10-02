@@ -9,7 +9,7 @@ const inspectorPath = new URL("../apps/web/src/components/Inspector.tsx", import
 const vitePath = new URL("../apps/web/vite.config.ts", import.meta.url);
 const editorPath = new URL("../apps/web/src/editor.ts", import.meta.url);
 
-test("editor shell source preserves local architecture while enabling Milestone 3 mutations", async () => {
+test("editor shell source preserves local architecture while enabling Milestone 4 design-system editing", async () => {
   const [app, sidebar, canvas, inspector, vite] = await Promise.all([
     readFile(appPath, "utf8"), readFile(sidebarPath, "utf8"), readFile(canvasPath, "utf8"), readFile(inspectorPath, "utf8"), readFile(vitePath, "utf8")
   ]);
@@ -30,13 +30,30 @@ test("editor shell source preserves local architecture while enabling Milestone 
   assert.match(sidebar, /componentTemplates/);
   assert.match(canvas, /node-resize-handle/);
   assert.match(canvas, /onDrop/);
-  assert.match(inspector, /Editable/);
+  assert.match(inspector, /Design System|Responsive scope/);
   assert.match(inspector, /Flex/);
   assert.match(inspector, /Grid/);
   assert.match(inspector, /Padding/);
   assert.match(inspector, /Typography/);
   assert.match(inspector, /Font size/);
   assert.match(inspector, /Background/);
+  assert.match(inspector, /token-select/);
+  assert.match(inspector, /Component instance override/);
+  assert.match(sidebar, /Design/);
+  assert.match(sidebar, /Tokens/);
+  assert.match(sidebar, /Breakpoints/);
+  assert.match(sidebar, /Reusable/);
+  assert.match(canvas, /Responsive breakpoint/);
+  assert.match(app, /CreateReusableComponentCommand/);
+  assert.match(app, /UpsertDesignTokenCommand/);
+  assert.match(app, /SetActiveThemeCommand/);
+  assert.match(app, /DeleteThemeCommand/);
+  assert.match(app, /DeleteBreakpointCommand/);
+  assert.match(app, /DeleteComponentDefinitionCommand/);
+  assert.match(app, /Schema v2/);
+  assert.match(sidebar, /New theme name/);
+  assert.match(sidebar, /token-create-expanded/);
+  assert.match(sidebar, /onDeleteBreakpoint/);
   assert.match(vite, /127\.0\.0\.1/);
   assert.match(vite, /4173/);
   assert.match(vite, /4174/);

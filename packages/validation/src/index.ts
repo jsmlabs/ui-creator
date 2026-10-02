@@ -48,11 +48,21 @@ function validateNodeReferences(project: Project, node: UINode, issues: Validati
   const styleValues: unknown[] = Object.values(node.style);
   for (const responsive of Object.values(node.responsive)) styleValues.push(...Object.values(responsive));
   for (const state of Object.values(node.states)) styleValues.push(...Object.values(state));
+  styleValues.push(...Object.values(node.componentOverrides?.style ?? {}));
+  for (const responsive of Object.values(node.componentOverrides?.responsive ?? {})) styleValues.push(...Object.values(responsive));
   for (const tokenId of styleValues.flatMap(tokenReferencesFromValue)) {
     if (!project.tokens[tokenId]) issues.push(error("TOKEN_NOT_FOUND", `Node ${node.id} references missing token ${tokenId}.`, `nodes.${node.id}`));
   }
+  for (const breakpointId of [...Object.keys(node.responsive), ...Object.keys(node.componentOverrides?.responsive ?? {})]) {
+    if (!(breakpointId in project.settings.breakpoints)) {
+      issues.push(error("BREAKPOINT_NOT_FOUND", `Node ${node.id} references missing breakpoint ${breakpointId}.`, `nodes.${node.id}.responsive`));
+    }
+  }
   if (node.componentRef && !project.components[node.componentRef]) {
     issues.push(error("COMPONENT_NOT_FOUND", `Node ${node.id} references missing component ${node.componentRef}.`, `nodes.${node.id}.componentRef`));
+  }
+  if (!node.componentRef && node.componentOverrides) {
+    issues.push(error("COMPONENT_OVERRIDES_WITHOUT_REFERENCE", `Node ${node.id} has component overrides without a component reference.`, `nodes.${node.id}.componentOverrides`));
   }
 }
 
@@ -99,8 +109,32 @@ export function validateProject(project: Project): ValidationResult {
     if (!project.nodes[interaction.sourceNodeId]) issues.push(error("INTERACTION_SOURCE_NOT_FOUND", `Interaction ${interaction.id} references missing source node ${interaction.sourceNodeId}.`, `interactions.${interaction.id}.sourceNodeId`));
   }
 
-  for (const component of Object.values(project.components)) {
-    if (!project.nodes[component.rootNodeId]) issues.push(error("COMPONENT_ROOT_NOT_FOUND", `Component ${component.id} references missing root node ${component.rootNodeId}.`, `components.${component.id}.rootNodeId`));
+  for (const [breakpointId, value] of Object.entries(project.settings.breakpoints)) {
+    if (!Number.isFinite(value) || value <= 0) issues.push(error("INVALID_BREAKPOINT", `Breakpoint ${breakpointId} must be a positive finite number.`, `settings.breakpoints.${breakpointId}`));
+  }
+
+  if (project.settings.activeThemeId !== null && !project.themes[project.settings.activeThemeId]) {
+    issues.push(error("ACTIVE_THEME_NOT_FOUND", `Active theme ${project.settings.activeThemeId} does not exist.`, "settings.activeThemeId"));
+  }
+
+  for (const [themeId, theme] of Object.entries(project.themes)) {
+    if (theme.id !== themeId) issues.push(error("THEME_KEY_ID_MISMATCH", `Theme key ${themeId} does not match theme id ${theme.id}.`, `themes.${themeId}.id`));
+    for (const tokenId of Object.keys(theme.tokenOverrides)) {
+      if (!project.tokens[tokenId]) issues.push(error("THEME_TOKEN_NOT_FOUND", `Theme ${themeId} overrides missing token ${tokenId}.`, `themes.${themeId}.tokenOverrides.${tokenId}`));
+    }
+  }
+
+  const validTokenCategories = new Set(["color", "spacing", "radius", "typography", "shadow", "border", "opacity", "breakpoint", "zIndex", "motion"]);
+  for (const [tokenId, token] of Object.entries(project.tokens)) {
+    if (token.id !== tokenId) issues.push(error("TOKEN_KEY_ID_MISMATCH", `Token key ${tokenId} does not match token id ${token.id}.`, `tokens.${tokenId}.id`));
+    if (!validTokenCategories.has(token.category)) issues.push(error("INVALID_TOKEN_CATEGORY", `Token ${tokenId} has unsupported category ${String(token.category)}.`, `tokens.${tokenId}.category`));
+  }
+
+  for (const [componentId, component] of Object.entries(project.components)) {
+    if (component.id !== componentId) issues.push(error("COMPONENT_KEY_ID_MISMATCH", `Component key ${componentId} does not match component id ${component.id}.`, `components.${componentId}.id`));
+    const root = project.nodes[component.rootNodeId];
+    if (!root) issues.push(error("COMPONENT_ROOT_NOT_FOUND", `Component ${component.id} references missing root node ${component.rootNodeId}.`, `components.${component.id}.rootNodeId`));
+    else if (root.parentId !== null) issues.push(error("COMPONENT_ROOT_HAS_PARENT", `Component ${component.id} root node must be detached from page trees.`, `components.${component.id}.rootNodeId`));
   }
 
   validateCycles(project, issues);

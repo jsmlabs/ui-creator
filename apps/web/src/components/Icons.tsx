@@ -16,6 +16,11 @@ export function ComponentsIcon(props: SVGProps<SVGSVGElement>) {
   return <IconBase {...props}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></IconBase>;
 }
 
+
+export function DesignIcon(props: SVGProps<SVGSVGElement>) {
+  return <IconBase {...props}><path d="M4 20h16"/><path d="M6 16 16 6l2 2L8 18H6z"/><path d="m14 8 2 2"/></IconBase>;
+}
+
 export function AssetsIcon(props: SVGProps<SVGSVGElement>) {
   return <IconBase {...props}><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/></IconBase>;
 }

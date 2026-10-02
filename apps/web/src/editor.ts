@@ -11,9 +11,8 @@ export const componentTemplates = [
   { type: "input", label: "Input" }
 ] as const;
 
-export function literal(value: StylePrimitive): TokenOrValue {
-  return { kind: "literal", value };
-}
+export function literal(value: StylePrimitive): TokenOrValue { return { kind: "literal", value }; }
+export function token(tokenId: string): TokenOrValue { return { kind: "token", tokenId }; }
 
 export function literalValue(value: TokenOrValue | undefined, fallback = ""): StylePrimitive {
   return value?.kind === "literal" ? value.value : fallback;
@@ -22,30 +21,64 @@ export function literalValue(value: TokenOrValue | undefined, fallback = ""): St
 export function createComponentNode(type: string): UINode {
   const base = createNode({ type, name: type[0]!.toUpperCase() + type.slice(1) });
   if (type === "stack") {
-    base.style = { display: "flex", gap: literal("12px"), padding: literal("16px") };
+    base.style = { display: "flex", gap: token("spacing.sm"), padding: token("spacing.md") };
     base.props = { direction: "column" };
   } else if (type === "grid") {
-    base.style = { display: "grid", gap: literal("12px"), padding: literal("16px") };
+    base.style = { display: "grid", gap: token("spacing.sm"), padding: token("spacing.md") };
     base.props = { columns: 2 };
   } else if (type === "container") {
-    base.style = { display: "block", padding: literal("16px") };
+    base.style = { display: "block", padding: token("spacing.md") };
   } else if (type === "text") {
     base.props = { text: "Text" };
+    base.style = { color: token("color.text.primary") };
   } else if (type === "button") {
     base.props = { text: "Button" };
-    base.style = { padding: literal("10px 14px"), borderRadius: literal("6px"), background: literal("#272d66"), color: literal("#eef0ff") };
+    base.style = { padding: literal("10px 14px"), borderRadius: token("radius.md"), background: token("color.accent.primary"), color: literal("#ffffff") };
   } else if (type === "input") {
     base.props = { placeholder: "Input" };
-    base.style = { padding: literal("10px 12px"), borderRadius: literal("6px"), background: literal("#17171b"), color: literal("#e4e4e7") };
+    base.style = { padding: literal("10px 12px"), borderRadius: token("radius.md"), background: token("color.surface.control"), color: token("color.text.primary") };
   }
   return base;
 }
 
-export function resolveCssStyle(style: NodeStyle, node?: UINode): CSSProperties {
+export function createComponentInstance(project: Project, componentId: string): UINode {
+  const definition = project.components[componentId];
+  if (!definition) throw new Error(`Component ${componentId} does not exist.`);
+  return createNode({
+    type: "component-instance",
+    name: definition.name,
+    componentRef: componentId,
+    componentOverrides: { props: {}, style: {}, responsive: {} }
+  });
+}
+
+export function resolveTokenValue(project: Project, value: TokenOrValue | undefined): StylePrimitive | undefined {
+  if (!value) return undefined;
+  if (value.kind === "literal") return value.value;
+  const themeId = project.settings.activeThemeId;
+  const themed = themeId ? project.themes[themeId]?.tokenOverrides[value.tokenId] : undefined;
+  return themed !== undefined ? themed : project.tokens[value.tokenId]?.value;
+}
+
+export function resolveEffectiveStyle(project: Project, node: UINode, breakpointId: string | null): NodeStyle {
+  const base: NodeStyle = { ...node.style, ...(node.componentOverrides?.style ?? {}) };
+  if (!breakpointId) return base;
+  const target = project.settings.breakpoints[breakpointId];
+  if (target === undefined) return base;
+  const ordered = Object.entries(project.settings.breakpoints).sort((a, b) => a[1] - b[1]);
+  for (const [id, width] of ordered) {
+    if (width > target) break;
+    Object.assign(base, node.responsive[id] ?? {}, node.componentOverrides?.responsive?.[id] ?? {});
+  }
+  return base;
+}
+
+export function resolveCssStyle(project: Project, node: UINode, breakpointId: string | null = null): CSSProperties {
+  const style = resolveEffectiveStyle(project, node, breakpointId);
   const css: CSSProperties = {};
   const get = (value: TokenOrValue | undefined): string | number | undefined => {
-    if (!value || value.kind !== "literal") return undefined;
-    return typeof value.value === "boolean" || value.value === null ? undefined : value.value;
+    const resolved = resolveTokenValue(project, value);
+    return typeof resolved === "boolean" || resolved === null ? undefined : resolved;
   };
   if (style.display) css.display = style.display;
   css.width = get(style.width);
@@ -62,18 +95,39 @@ export function resolveCssStyle(style: NodeStyle, node?: UINode): CSSProperties 
   css.lineHeight = get(style.lineHeight);
   css.textAlign = get(style.textAlign) as CSSProperties["textAlign"];
   if (style.display === "flex") {
-    css.flexDirection = node?.props.direction === "row" ? "row" : "column";
+    css.flexDirection = node.props.direction === "row" ? "row" : "column";
     css.alignItems = "stretch";
   }
   if (style.display === "grid") {
-    const columns = Number(node?.props.columns ?? 2);
+    const columns = Number(node.props.columns ?? 2);
     css.gridTemplateColumns = `repeat(${Number.isFinite(columns) && columns > 0 ? columns : 2}, minmax(0, 1fr))`;
   }
   return css;
 }
 
+export function getComponentRoot(project: Project, instance: UINode): UINode | null {
+  if (!instance.componentRef) return null;
+  const definition = project.components[instance.componentRef];
+  const root = definition ? project.nodes[definition.rootNodeId] : undefined;
+  if (!root) return null;
+  const merged: UINode = {
+    ...root,
+    id: instance.id,
+    name: instance.name,
+    parentId: instance.parentId,
+    props: { ...root.props, ...(instance.componentOverrides?.props ?? {}) },
+    style: { ...root.style, ...(instance.componentOverrides?.style ?? {}) },
+    responsive: { ...root.responsive, ...(instance.componentOverrides?.responsive ?? {}) },
+    visible: instance.componentOverrides?.visible ?? instance.visible,
+    locked: instance.locked,
+    componentRef: instance.componentRef
+  };
+  if (instance.componentOverrides) merged.componentOverrides = instance.componentOverrides;
+  return merged;
+}
+
 export function canAcceptChildren(node: UINode): boolean {
-  return node.type === "container" || node.type === "stack" || node.type === "grid";
+  return !node.componentRef && (node.type === "container" || node.type === "stack" || node.type === "grid");
 }
 
 export function getDefaultParent(project: Project, selectedNodeId: string | null, activePageId: string | null): string | null {

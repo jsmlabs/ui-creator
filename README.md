@@ -4,16 +4,16 @@ Local-first interface engineering environment for designing structured, editable
 
 > Design interfaces as systems, not screenshots.
 
-**Current version:** `v0.4.3`  
+**Current version:** `v0.5.0`  
 **Status:** Active development  
 **Platform:** Local web application  
 **Primary stack:** React, TypeScript, Vite, Node.js
 
 ## Overview
 
-UI Creator is being built as a structured GUI/UI/UX design environment rather than a pixel-only mockup tool.
+UI Creator is a structured GUI/UI/UX design environment rather than a pixel-only mockup tool.
 
-The project uses a canonical project model shared across the editor, validation, persistence, runtime, future AI tooling, and export pipeline. Persistent changes are represented as validated commands so operations remain inspectable, reversible, and deterministic where practical.
+The project uses one canonical project model across the editor, validation, persistence, runtime, future AI tooling, and export pipeline. Persistent changes are represented as validated commands so operations remain inspectable, reversible, and deterministic where practical.
 
 The long-term workflow is:
 
@@ -21,9 +21,54 @@ The long-term workflow is:
 Describe → Generate → Inspect → Edit → Validate → Preview → Export
 ```
 
-The current milestone focuses on the visual editor and layout foundation.
+## Milestone 4 - Design System
 
-## Current capabilities
+`v0.5.0` adds the first complete design-system layer on top of the layout editor.
+
+### Design tokens
+
+- Central token registry
+- Color, spacing, radius, typography, shadow, border, opacity, breakpoint, z-index, and motion categories
+- Literal values and token references remain distinct in the project model
+- Token selection directly from the Inspector
+- Create, update, and delete token controls
+- Referenced tokens cannot be deleted
+- Token deletion is exactly reversible, including theme overrides
+
+### Themes
+
+- Dark and Light defaults
+- Create additional themes
+- Select or disable the active theme
+- Per-token theme overrides
+- Reset individual overrides back to base token values
+- Active themes cannot be deleted accidentally
+
+### Responsive design
+
+- Project-level breakpoints
+- Create, update, and delete breakpoints
+- Base styles plus breakpoint-specific overrides
+- Responsive Canvas viewport selector
+- Cascading breakpoint resolution
+- Breakpoints still referenced by nodes cannot be deleted
+
+### Reusable components
+
+- Convert a selected subtree into a reusable component definition
+- Definition subtrees are detached from page trees
+- Insert component instances into pages
+- Component instances share their source definition
+- Instance-local property, style, visibility, and responsive overrides
+- Definitions cannot be deleted while instances still reference them
+
+### Compatibility
+
+Project schema is now **Schema v2**.
+
+Schema v1 projects are migrated automatically when loaded. Existing project data is preserved while missing default design-system tokens, themes, and breakpoints are added.
+
+## Existing capabilities
 
 ### Editor
 
@@ -54,26 +99,16 @@ The current milestone focuses on the visual editor and layout foundation.
 
 ### Project engine
 
-- Canonical Project Schema v1
+- Canonical Project Schema v2
 - Validated command-based mutations
 - Undo/redo
 - Deterministic serialization
-- Project migrations foundation
+- Sequential schema migration harness
 - Atomic local persistence
 - Rolling backups
 - Recovery from valid backups
 - Recent-project metadata through SQLite
 - Local Project CRUD API
-
-### Quality
-
-- Structural validation
-- Parent/child consistency checks
-- Cycle prevention
-- Broken-reference detection
-- Deterministic duplicate redo
-- Core, integration, persistence, API, and editor contract tests
-- Production Vite build verification
 
 ## Architecture
 
@@ -100,8 +135,9 @@ Key invariants:
 - React components do not directly mutate persistent project state.
 - Persistent editor mutations pass through validated commands.
 - Renderer logic is read-only with respect to the project model.
-- Drag and resize may use transient visual state, but only the completed operation enters history.
+- Drag and resize may use transient visual state, but only completed operations enter history.
 - Project files remain portable and filesystem-oriented.
+- Schema migrations are sequential and validated.
 - AI-generated changes, once implemented, will use the same validated mutation path as manual edits.
 
 ## Repository structure
@@ -143,12 +179,7 @@ The root package uses npm workspaces, so one install covers both the core toolin
 npm run verify
 ```
 
-Verification runs:
-
-1. TypeScript core build
-2. Core and integration tests
-3. Editor contract tests
-4. Production web build
+Verification runs the TypeScript core build, automated core/integration/editor tests, and the production Vite build.
 
 ## Run locally
 
@@ -185,21 +216,26 @@ npm run dev:web
 | Save | `Ctrl/Cmd + S` |
 | Delete selected node | `Delete` |
 
+## Verification status
+
+The packaged `v0.5.0` source passes **25/25 core, integration, persistence, migration, command, and editor contract tests** in the build environment.
+
+The React/Vite source also passes an isolated TypeScript contract check. A full local Vite production build still requires the npm dependencies to be installed with `npm install`.
+
 ## Roadmap
 
-### `v0.5.0` - Design System
+### `v0.6.0` - Runtime
 
-- Design tokens
-- Themes
-- Breakpoints
-- Responsive overrides
-- Reusable components
-- Component overrides
+- Runtime variables
+- Component states
+- Events and actions
+- Navigation
+- Modal and drawer state
+- Forms
+- Interactive preview mode
 
 ### Later milestones
 
-- Runtime variables and interactions
-- Preview runtime
 - React + TypeScript + Tailwind export
 - Structured AI generation and editing
 - AI change review

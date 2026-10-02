@@ -1,4 +1,4 @@
-export const CURRENT_SCHEMA_VERSION = 1 as const;
+export const CURRENT_SCHEMA_VERSION = 2 as const;
 export type ProjectSchemaVersion = typeof CURRENT_SCHEMA_VERSION;
 export type StylePrimitive = string | number | boolean | null;
 
@@ -16,7 +16,6 @@ export interface NodeStyle {
   background?: TokenOrValue;
   color?: TokenOrValue;
   borderRadius?: TokenOrValue;
-
   fontSize?: TokenOrValue;
   fontWeight?: TokenOrValue;
   lineHeight?: TokenOrValue;
@@ -25,6 +24,13 @@ export interface NodeStyle {
 
 export type ResponsiveOverrides = Record<string, Partial<NodeStyle>>;
 export type NodeStates = Record<string, Partial<NodeStyle>>;
+
+export interface ComponentOverrides {
+  props?: Record<string, unknown>;
+  style?: Partial<NodeStyle>;
+  responsive?: ResponsiveOverrides;
+  visible?: boolean;
+}
 
 export interface UINode {
   id: string;
@@ -39,6 +45,7 @@ export interface UINode {
   visible: boolean;
   locked: boolean;
   componentRef?: string;
+  componentOverrides?: ComponentOverrides;
 }
 
 export interface PageMetadata { title?: string; description?: string; }

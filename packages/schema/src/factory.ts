@@ -1,7 +1,6 @@
 import { createId } from "../../shared/src/index.js";
+import { DEFAULT_BREAKPOINTS, DEFAULT_THEMES, DEFAULT_TOKENS } from "./defaults.js";
 import { CURRENT_SCHEMA_VERSION, type Page, type Project, type UINode } from "./types.js";
-
-const DEFAULT_BREAKPOINTS = { sm: 640, md: 768, lg: 1024, xl: 1280, "2xl": 1536 } as const;
 
 export function createNode(input: Partial<UINode> & Pick<UINode, "type" | "name">): UINode {
   return {
@@ -16,13 +15,25 @@ export function createNode(input: Partial<UINode> & Pick<UINode, "type" | "name"
     states: input.states ?? {},
     visible: input.visible ?? true,
     locked: input.locked ?? false,
-    ...(input.componentRef === undefined ? {} : { componentRef: input.componentRef })
+    ...(input.componentRef === undefined ? {} : { componentRef: input.componentRef }),
+    ...(input.componentOverrides === undefined ? {} : { componentOverrides: input.componentOverrides })
   };
 }
 
 export function createPage(name: string, path = "/"): { page: Page; rootNode: UINode } {
   const pageId = createId("page");
-  const rootNode = createNode({ type: "container", name: `${name} Root` });
+  const rootNode = createNode({
+    type: "container",
+    name: `${name} Root`,
+    style: {
+      display: "flex",
+      padding: { kind: "token", tokenId: "spacing.md" },
+      gap: { kind: "token", tokenId: "spacing.sm" },
+      background: { kind: "token", tokenId: "color.surface.canvas" },
+      color: { kind: "token", tokenId: "color.text.primary" }
+    },
+    props: { direction: "column" }
+  });
   return { page: { id: pageId, name, path, rootNodeId: rootNode.id, metadata: {} }, rootNode };
 }
 
@@ -34,10 +45,13 @@ export function createProject(name: string, now = new Date()): Project {
     id: createId("project"),
     name,
     metadata: { createdAt: timestamp, updatedAt: timestamp },
-    settings: { activeThemeId: null, breakpoints: { ...DEFAULT_BREAKPOINTS } },
+    settings: { activeThemeId: "theme-dark", breakpoints: { ...DEFAULT_BREAKPOINTS } },
     pages: { [page.id]: page },
     nodes: { [rootNode.id]: rootNode },
-    components: {}, tokens: {}, themes: {}, variables: {}, interactions: {}, assets: {},
+    components: {},
+    tokens: structuredClone(DEFAULT_TOKENS),
+    themes: structuredClone(DEFAULT_THEMES),
+    variables: {}, interactions: {}, assets: {},
     rootPageId: page.id
   };
 }
