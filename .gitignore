@@ -3,3 +3,4 @@ dist/
 data/
 *.tmp
 .DS_Store
+apps/web/tsconfig.tsbuildinfo
