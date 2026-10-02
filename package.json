@@ -1,0 +1,26 @@
+{
+  "name": "local-ui-creator",
+  "version": "0.4.3",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "build:core": "tsc -p tsconfig.json",
+    "build:web": "npm run build --workspace @ui-creator/web",
+    "build": "npm run build:core && npm run build:web",
+    "dev:server": "npm run build:core && node apps/server/src/main.mjs",
+    "dev:web": "npm run dev --workspace @ui-creator/web",
+    "start": "npm run dev:server",
+    "test": "npm run build:core && node --test tests/**/*.test.mjs",
+    "verify": "npm run test && npm run build:web",
+    "dev": "node scripts/dev.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "workspaces": [
+    "apps/web"
+  ]
+}
