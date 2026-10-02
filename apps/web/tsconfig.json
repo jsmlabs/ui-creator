@@ -16,5 +16,5 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["src", "vite.config.ts", "../../packages/schema/src/**/*.ts", "../../packages/shared/src/**/*.ts", "../../packages/validation/src/**/*.ts", "../../packages/commands/src/**/*.ts"]
+  "include": ["src", "vite.config.ts", "../../packages/schema/src/**/*.ts", "../../packages/shared/src/**/*.ts", "../../packages/validation/src/**/*.ts", "../../packages/commands/src/**/*.ts", "../../packages/runtime/src/**/*.ts"]
 }

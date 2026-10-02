@@ -87,7 +87,7 @@ test("validation rejects missing responsive breakpoints and theme token referenc
 });
 
 
-test("schema v1 projects migrate to schema v2 without losing existing design data", () => {
+test("schema v1 projects migrate to schema v3 without losing existing design data", () => {
   const current = createProject("Migration", fixedNow);
   const legacy = structuredClone(current);
   legacy.schemaVersion = 1;
@@ -97,7 +97,7 @@ test("schema v1 projects migrate to schema v2 without losing existing design dat
   delete legacy.settings.breakpoints["2xl"];
 
   const migrated = migrateProject(legacy);
-  assert.equal(migrated.schemaVersion, 2);
+  assert.equal(migrated.schemaVersion, 3);
   assert.equal(migrated.tokens["custom.spacing"].value, "20px");
   assert.ok(migrated.tokens["spacing.md"]);
   assert.ok(migrated.themes["theme-dark"]);

@@ -8,24 +8,29 @@ import {
   DeleteDesignTokenCommand,
   DeleteSubtreeCommand,
   DeleteThemeCommand,
+  DeleteInteractionCommand,
+  DeleteRuntimeVariableCommand,
   DuplicateSubtreeCommand,
   MoveNodeCommand,
   SetActiveThemeCommand,
   UpdateBreakpointCommand,
   UpdateNodeCommand,
   UpsertDesignTokenCommand,
-  UpsertThemeCommand
+  UpsertThemeCommand,
+  UpsertInteractionCommand,
+  UpsertRuntimeVariableCommand
 } from "../../../packages/commands/src/index";
 import type { Command } from "../../../packages/commands/src/types";
 import { Canvas } from "./components/Canvas";
 import { Inspector } from "./components/Inspector";
+import { Preview } from "./components/Preview";
 import { Sidebar } from "./components/Sidebar";
 import { createComponentInstance, createComponentNode, getDefaultParent } from "./editor";
 import { useResizablePanel } from "./hooks/useResizablePanel";
-import type { DesignToken, LoadedProject, ProjectDocument, ProjectSummary } from "./types";
+import type { DesignToken, Interaction, LoadedProject, ProjectDocument, ProjectSummary, RuntimeVariable } from "./types";
 
 const fallbackProject: ProjectDocument = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   id: "demo-project",
   name: "Untitled Interface",
   metadata: { createdAt: "2026-10-02T00:00:00.000Z", updatedAt: "2026-10-02T00:00:00.000Z" },
@@ -77,6 +82,7 @@ export function App() {
   const [dirty, setDirty] = useState(false);
   const [message, setMessage] = useState("Ready");
   const [historyVersion, setHistoryVersion] = useState(0);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -191,6 +197,12 @@ export function App() {
     } else execute(new UpdateNodeCommand(nodeId, { style: { ...node.style, ...size } }));
   };
 
+
+  const upsertVariable = (variable: RuntimeVariable) => execute(new UpsertRuntimeVariableCommand(variable));
+  const deleteVariable = (variableId: string) => execute(new DeleteRuntimeVariableCommand(variableId));
+  const upsertInteraction = (interaction: Interaction) => execute(new UpsertInteractionCommand(interaction));
+  const deleteInteraction = (interactionId: string) => execute(new DeleteInteractionCommand(interactionId));
+
   const upsertToken = (token: DesignToken) => execute(new UpsertDesignTokenCommand(token));
   const updateThemeToken = (themeId: string, tokenId: string, value: string) => {
     const theme = project.themes[themeId];
@@ -230,16 +242,18 @@ export function App() {
 
   void historyVersion;
 
+  if (previewOpen) return <Preview project={project} onClose={() => setPreviewOpen(false)}/>;
+
   return (
     <div className="app-shell" style={{ "--left-panel": `${leftPanel.size}px`, "--right-panel": `${rightPanel.size}px` } as CSSProperties}>
       <header className="topbar">
-        <div className="brand"><div className="brand-mark">UI</div><strong>Creator</strong><span className="version">v0.5.0</span></div>
+        <div className="brand"><div className="brand-mark">UI</div><strong>Creator</strong><span className="version">v0.6.0</span></div>
         <div className="project-crumbs"><button type="button">{project.name}{dirty ? " *" : ""}</button><span>/</span><button type="button">{activePageId ? project.pages[activePageId]?.name : "No page"}</button><span>/</span><span className="theme-label">{project.settings.activeThemeId ? project.themes[project.settings.activeThemeId]?.name : "No theme"}</span></div>
         <div className="topbar-actions">
           <button className="top-button" type="button" onClick={undo} disabled={!history.canUndo}>Undo</button>
           <button className="top-button" type="button" onClick={redo} disabled={!history.canRedo}>Redo</button>
           <span className={`connection ${connection}`}>{connection === "connected" ? "Local server" : "Offline preview"}</span>
-          <button className="top-button" type="button">Preview</button><button className="top-button" type="button">Export</button>
+          <button className="top-button" type="button" onClick={() => setPreviewOpen(true)}>Preview</button><button className="top-button" type="button">Export</button>
           <button className="top-button primary" type="button" onClick={() => void save()} disabled={!dirty}>Save</button>
         </div>
       </header>
@@ -266,17 +280,19 @@ export function App() {
             onClearThemeToken={clearThemeToken}
             onUpdateBreakpoint={(id, value) => execute(new UpdateBreakpointCommand(id, value))}
             onDeleteBreakpoint={deleteBreakpoint}
+            onUpsertVariable={upsertVariable}
+            onDeleteVariable={deleteVariable}
           />
         </div>
         <div className="resize-handle vertical" role="separator" aria-orientation="vertical" onPointerDown={leftPanel.beginResize}/>
         <Canvas project={project} activePageId={activePageId} activeBreakpointId={activeBreakpointId} selectedNodeId={selectedNodeId} onSelectNode={setSelectedNodeId} onMoveNode={(nodeId, parentId, index) => execute(new MoveNodeCommand(nodeId, parentId, index), nodeId)} onResizeNode={resizeNode} onBreakpointChange={setActiveBreakpointId}/>
         <div className="resize-handle vertical" role="separator" aria-orientation="vertical" onPointerDown={rightPanel.beginResize}/>
         <div className="right-panel" style={{ width: rightPanel.size }}>
-          <Inspector project={project} node={selectedNode} activeBreakpointId={activeBreakpointId} onUpdate={changes => selectedNode && execute(new UpdateNodeCommand(selectedNode.id, changes))} onDelete={deleteSelected} onDuplicate={duplicateSelected} onCreateReusable={createReusableComponent}/>
+          <Inspector project={project} node={selectedNode} activeBreakpointId={activeBreakpointId} onUpdate={changes => selectedNode && execute(new UpdateNodeCommand(selectedNode.id, changes))} onDelete={deleteSelected} onDuplicate={duplicateSelected} onCreateReusable={createReusableComponent} onUpsertInteraction={upsertInteraction} onDeleteInteraction={deleteInteraction}/>
         </div>
       </div>
 
-      <footer className="statusbar"><span>{message}</span><span>DOM Canvas</span><span>Schema v2</span><span>{activeBreakpointId ?? "Base"}</span><span className="statusbar-spacer"/><span>{Object.keys(project.tokens).length} tokens</span><span>{Object.keys(project.components).length} components</span><span>{Object.keys(project.nodes).length} nodes</span></footer>
+      <footer className="statusbar"><span>{message}</span><span>DOM Canvas</span><span>Schema v3</span><span>{activeBreakpointId ?? "Base"}</span><span className="statusbar-spacer"/><span>{Object.keys(project.variables).length} vars</span><span>{Object.keys(project.interactions).length} interactions</span><span>{Object.keys(project.tokens).length} tokens</span><span>{Object.keys(project.components).length} components</span><span>{Object.keys(project.nodes).length} nodes</span></footer>
     </div>
   );
 }

@@ -1,9 +1,9 @@
 import { useMemo, useState, type DragEvent } from "react";
-import type { DesignToken, ProjectDocument } from "../types";
+import type { DesignToken, ProjectDocument, RuntimeVariable, RuntimeVariableType } from "../types";
 import { componentTemplates } from "../editor";
 import { AssetsIcon, ComponentsIcon, DesignIcon, EyeIcon, LayersIcon, LockIcon, PagesIcon } from "./Icons";
 
-type Tab = "layers" | "pages" | "components" | "design" | "assets";
+type Tab = "layers" | "pages" | "components" | "design" | "runtime" | "assets";
 type TokenCategory = DesignToken["category"];
 
 interface Props {
@@ -26,6 +26,8 @@ interface Props {
   onClearThemeToken(themeId: string, tokenId: string): void;
   onUpdateBreakpoint(id: string, value: number): void;
   onDeleteBreakpoint(id: string): void;
+  onUpsertVariable(variable: RuntimeVariable): void;
+  onDeleteVariable(variableId: string): void;
 }
 
 const tabs: Array<{ id: Tab; label: string; Icon: typeof LayersIcon }> = [
@@ -33,6 +35,7 @@ const tabs: Array<{ id: Tab; label: string; Icon: typeof LayersIcon }> = [
   { id: "pages", label: "Pages", Icon: PagesIcon },
   { id: "components", label: "Components", Icon: ComponentsIcon },
   { id: "design", label: "Design", Icon: DesignIcon },
+  { id: "runtime", label: "Runtime", Icon: DesignIcon },
   { id: "assets", label: "Assets", Icon: AssetsIcon }
 ];
 
@@ -68,7 +71,9 @@ export function Sidebar({
   onUpdateThemeToken,
   onClearThemeToken,
   onUpdateBreakpoint,
-  onDeleteBreakpoint
+  onDeleteBreakpoint,
+  onUpsertVariable,
+  onDeleteVariable
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("layers");
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -78,6 +83,9 @@ export function Sidebar({
   const [newThemeName, setNewThemeName] = useState("");
   const [newBreakpointId, setNewBreakpointId] = useState("");
   const [newBreakpointValue, setNewBreakpointValue] = useState("1024");
+  const [newVariableName, setNewVariableName] = useState("");
+  const [newVariableType, setNewVariableType] = useState<RuntimeVariableType>("string");
+  const [newVariableValue, setNewVariableValue] = useState("");
   const activePage = activePageId ? project.pages[activePageId] : undefined;
 
   const layerRows = useMemo(() => {
@@ -109,6 +117,7 @@ export function Sidebar({
   const sortedTokens = Object.values(project.tokens).sort((a, b) => a.id.localeCompare(b.id));
   const sortedBreakpoints = Object.entries(project.settings.breakpoints).sort((a, b) => a[1] - b[1]);
   const reusableComponents = Object.values(project.components).sort((a, b) => a.name.localeCompare(b.name));
+  const runtimeVariables = Object.values(project.variables).sort((a, b) => a.name.localeCompare(b.name));
 
   const createToken = () => {
     const id = newTokenId.trim();
@@ -136,6 +145,16 @@ export function Sidebar({
     setNewBreakpointId("");
   };
 
+  const createVariable = () => {
+    const name = newVariableName.trim();
+    if (!name) return;
+    const id = `var-${normalizeId(name, "variable")}`;
+    const initialValue = newVariableType === "number" ? Number(newVariableValue || 0) : newVariableType === "boolean" ? newVariableValue === "true" : newVariableValue;
+    onUpsertVariable({ id, name, type: newVariableType, initialValue });
+    setNewVariableName("");
+    setNewVariableValue("");
+  };
+
   return (
     <aside className="sidebar-panel" aria-label="Project panel">
       <div className="sidebar-tabs" role="tablist" aria-label="Project tools">
@@ -143,7 +162,7 @@ export function Sidebar({
           <button key={id} className={`sidebar-tab ${activeTab === id ? "is-active" : ""}`} type="button" role="tab" aria-label={label} aria-selected={activeTab === id} onClick={() => setActiveTab(id)} title={label}><Icon /></button>
         ))}
       </div>
-      <div className="panel-header"><span>{tabs.find(tab => tab.id === activeTab)?.label}</span><span className="status-pill">v0.5</span></div>
+      <div className="panel-header"><span>{tabs.find(tab => tab.id === activeTab)?.label}</span><span className="status-pill">v0.6</span></div>
       <div className="sidebar-content">
         {activeTab === "layers" && <div className="tree-list">
           {layerRows.map(({ id, depth }) => {
@@ -205,6 +224,26 @@ export function Sidebar({
             {sortedBreakpoints.map(([id, value]) => <div key={id} className="breakpoint-row"><span>{id}</span><input type="number" min="1" value={value} onChange={event => onUpdateBreakpoint(id, Number(event.target.value))}/><small>px</small><button type="button" className="compact-danger" onClick={() => onDeleteBreakpoint(id)}>×</button></div>)}
             <div className="breakpoint-create"><input placeholder="tablet" value={newBreakpointId} onChange={event => setNewBreakpointId(event.target.value)}/><input type="number" min="1" value={newBreakpointValue} onChange={event => setNewBreakpointValue(event.target.value)}/><button type="button" onClick={createBreakpoint}>Add</button></div>
           </section>
+        </div>}
+
+
+        {activeTab === "runtime" && <div className="design-panel">
+          <section className="design-section">
+            <div className="palette-heading">Variables</div>
+            <div className="runtime-variable-list">
+              {runtimeVariables.length === 0 ? <div className="compact-empty">No runtime variables yet.</div> : runtimeVariables.map(variable => <div key={variable.id} className="runtime-variable-row">
+                <div><strong>{variable.name}</strong><span>{variable.type} · {String(variable.initialValue)}</span></div>
+                <button type="button" className="compact-danger" onClick={() => onDeleteVariable(variable.id)}>×</button>
+              </div>)}
+            </div>
+            <div className="runtime-variable-create">
+              <input placeholder="Variable name" value={newVariableName} onChange={event => setNewVariableName(event.target.value)}/>
+              <select value={newVariableType} onChange={event => setNewVariableType(event.target.value as RuntimeVariableType)}><option value="string">string</option><option value="number">number</option><option value="boolean">boolean</option></select>
+              {newVariableType === "boolean" ? <select value={newVariableValue || "false"} onChange={event => setNewVariableValue(event.target.value)}><option value="false">false</option><option value="true">true</option></select> : <input placeholder={newVariableType === "number" ? "0" : "Initial value"} value={newVariableValue} onChange={event => setNewVariableValue(event.target.value)}/>}
+              <button type="button" onClick={createVariable}>Add</button>
+            </div>
+          </section>
+          <section className="design-section"><div className="palette-heading">Runtime model</div><div className="runtime-help">Variables and interactions are persisted in the project. Preview state is ephemeral and resets when Preview opens.</div></section>
         </div>}
 
         {activeTab === "assets" && <div className="empty-state"><strong>No assets yet</strong><span>Asset management remains read-only until a later milestone.</span></div>}

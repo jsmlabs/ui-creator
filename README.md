@@ -1,144 +1,132 @@
 # UI Creator
 
-Local-first interface engineering environment for designing structured, editable, and production-oriented user interfaces.
+Local-first interface engineering environment for structured, editable, interactive, and production-oriented user interfaces.
 
-> Design interfaces as systems, not screenshots.
+> Describe → Generate → Inspect → Edit → Validate → Preview → Export
 
-**Current version:** `v0.5.0`  
-**Status:** Active development  
-**Platform:** Local web application  
-**Primary stack:** React, TypeScript, Vite, Node.js
+**Current version:** `v0.6.0`  
+**Schema:** `v3`  
+**Status:** Active pre-1.0 development
 
-## Overview
+## v0.6.0 - Runtime & Interactive Preview
 
-UI Creator is a structured GUI/UI/UX design environment rather than a pixel-only mockup tool.
+Milestone 5 adds the first declarative runtime layer. The editor can now persist runtime variables and interactions while the preview executes them in isolated, ephemeral state.
 
-The project uses one canonical project model across the editor, validation, persistence, runtime, future AI tooling, and export pipeline. Persistent changes are represented as validated commands so operations remain inspectable, reversible, and deterministic where practical.
+### Runtime capabilities
 
-The long-term workflow is:
+- Runtime variables with `string`, `number`, and `boolean` types
+- Declarative node events: `click`, `change`, `submit`, and `focus`
+- Declarative actions:
+  - `navigate`
+  - `open`
+  - `close`
+  - `toggle`
+  - `setVariable`
+  - `updateVariable`
+  - `submit`
+  - `reset`
+  - `focus`
+  - `scrollTo`
+- Interactive Preview mode
+- Runtime-state reset without mutating the project model
+- Page navigation in preview
+- Runtime visibility overrides for modal/drawer-style flows
+- Variable interpolation in text using `{{variableId}}`
+- Runtime variable inspector in Preview
+- New Form, Modal, Drawer, Toggle, and Tabs primitives
+- Interaction authoring from the node Inspector
+- Runtime variable management from the Runtime sidebar tab
+
+### Safety model
+
+UI Creator does **not** execute arbitrary JavaScript for interactions. Runtime behavior is represented as validated declarative actions and interpreted by the runtime engine.
+
+The core boundary is:
 
 ```text
-Describe → Generate → Inspect → Edit → Validate → Preview → Export
+Project Model
+    ↓
+Runtime Definitions
+    ↓
+Runtime State
+    ↓
+Interactive Preview
 ```
 
-## Milestone 4 - Design System
+Runtime state is temporary. It does not enter command history and never mutates persisted design state directly.
 
-`v0.5.0` adds the first complete design-system layer on top of the layout editor.
+## Existing editor capabilities
 
-### Design tokens
-
-- Central token registry
-- Color, spacing, radius, typography, shadow, border, opacity, breakpoint, z-index, and motion categories
-- Literal values and token references remain distinct in the project model
-- Token selection directly from the Inspector
-- Create, update, and delete token controls
-- Referenced tokens cannot be deleted
-- Token deletion is exactly reversible, including theme overrides
-
-### Themes
-
-- Dark and Light defaults
-- Create additional themes
-- Select or disable the active theme
-- Per-token theme overrides
-- Reset individual overrides back to base token values
-- Active themes cannot be deleted accidentally
-
-### Responsive design
-
-- Project-level breakpoints
-- Create, update, and delete breakpoints
-- Base styles plus breakpoint-specific overrides
-- Responsive Canvas viewport selector
-- Cascading breakpoint resolution
-- Breakpoints still referenced by nodes cannot be deleted
-
-### Reusable components
-
-- Convert a selected subtree into a reusable component definition
-- Definition subtrees are detached from page trees
-- Insert component instances into pages
-- Component instances share their source definition
-- Instance-local property, style, visibility, and responsive overrides
-- Definitions cannot be deleted while instances still reference them
-
-### Compatibility
-
-Project schema is now **Schema v2**.
-
-Schema v1 projects are migrated automatically when loaded. Existing project data is preserved while missing default design-system tokens, themes, and breakpoints are added.
-
-## Existing capabilities
-
-### Editor
-
-- React/Vite editor shell
-- DOM-based design canvas
+- DOM-based React/Vite editor shell
 - Pages and layer tree
 - Resizable editor panels
-- Node selection
-- Editable inspector
-- Add Container, Stack, Grid, Text, Button, and Input nodes
-- Delete and duplicate complete subtrees
-- Layer reorder via drag and drop
-- Canvas drag into compatible containers
-- Pointer-based resize
+- Node selection and editable Inspector
+- Container, Stack, Grid, Text, Button, Input
+- Form, Modal, Drawer, Toggle, Tabs
+- Add, delete, duplicate, reorder, drag and resize
+- Flexbox and CSS Grid controls
+- Width, height, padding, margin and gap
+- Typography and appearance editing
 - Visibility and lock controls
-
-### Layout and styling
-
-- Flexbox
-- CSS Grid
-- Width and height
-- Padding, margin, and gap
-- Typography
-- Background color
-- Text color
-- Border radius
-- Basic component content editing
-
-### Project engine
-
-- Canonical Project Schema v2
-- Validated command-based mutations
-- Undo/redo
-- Deterministic serialization
-- Sequential schema migration harness
-- Atomic local persistence
-- Rolling backups
-- Recovery from valid backups
-- Recent-project metadata through SQLite
+- Command-based undo/redo
+- Local filesystem projects
+- Rolling backups and recovery
+- SQLite recent-project metadata
 - Local Project CRUD API
+
+## Design system
+
+- Design tokens
+- Dark/light themes
+- Theme token overrides
+- Custom breakpoints
+- Responsive node overrides
+- Reusable components
+- Component instances and local overrides
 
 ## Architecture
 
+The canonical project model remains the single persisted source of truth.
+
 ```text
-                    User
-                     │
-                     ▼
-                  Commands
-                     │
-                     ▼
-               Project Model
-                /    |     \
-               /     |      \
-          Renderer Runtime Validation
-               \     |      /
-                \    |     /
-             Persistence / Export
+User / AI
+    ↓
+Validated Commands
+    ↓
+Project Model
+   ├── Renderer
+   ├── Validation
+   ├── Persistence
+   ├── Runtime Definitions
+   └── Export
+            
+Project Model + Runtime Definitions
+    ↓
+Ephemeral Runtime State
+    ↓
+Interactive Preview
 ```
 
-The project model is the single source of truth.
+Important invariants:
 
-Key invariants:
+- Persistent editor mutations pass through commands.
+- Undo/redo applies to design/runtime definitions stored in the project.
+- Live preview state is not persisted and is not added to undo history.
+- Runtime actions cannot execute arbitrary JavaScript.
+- Interaction targets, pages, variables, tokens, breakpoints, components, and node references are validated.
+- Renderer/runtime code does not directly mutate the persisted project model.
 
-- React components do not directly mutate persistent project state.
-- Persistent editor mutations pass through validated commands.
-- Renderer logic is read-only with respect to the project model.
-- Drag and resize may use transient visual state, but only completed operations enter history.
-- Project files remain portable and filesystem-oriented.
-- Schema migrations are sequential and validated.
-- AI-generated changes, once implemented, will use the same validated mutation path as manual edits.
+## Project schema v3
+
+Schema v3 formalizes typed runtime variables and declarative interaction events/actions.
+
+Legacy projects are migrated automatically:
+
+```text
+Schema v1 → Schema v2 → Schema v3
+```
+
+Schema migrations remain independent from application SemVer.
 
 ## Repository structure
 
@@ -150,6 +138,7 @@ ui-creator/
 ├── packages/
 │   ├── commands/
 │   ├── persistence/
+│   ├── runtime/
 │   ├── schema/
 │   ├── serialization/
 │   ├── shared/
@@ -171,15 +160,13 @@ ui-creator/
 npm install
 ```
 
-The root package uses npm workspaces, so one install covers both the core tooling and the React/Vite web application.
-
 ## Verify
 
 ```bash
 npm run verify
 ```
 
-Verification runs the TypeScript core build, automated core/integration/editor tests, and the production Vite build.
+This runs the TypeScript core build, automated tests, and the production Vite build.
 
 ## Run locally
 
@@ -187,19 +174,19 @@ Verification runs the TypeScript core build, automated core/integration/editor t
 npm run dev
 ```
 
-Then open:
+Open:
 
 ```text
 http://127.0.0.1:4173
 ```
 
-The local API service runs on:
+Local API:
 
 ```text
 http://127.0.0.1:4174
 ```
 
-The services can also be started separately:
+The services can also be started independently:
 
 ```bash
 npm run dev:server
@@ -216,57 +203,23 @@ npm run dev:web
 | Save | `Ctrl/Cmd + S` |
 | Delete selected node | `Delete` |
 
-## Verification status
-
-The packaged `v0.5.0` source passes **25/25 core, integration, persistence, migration, command, and editor contract tests** in the build environment.
-
-The React/Vite source also passes an isolated TypeScript contract check. A full local Vite production build still requires the npm dependencies to be installed with `npm install`.
-
 ## Roadmap
 
-### `v0.6.0` - Runtime
+### Completed foundations
 
-- Runtime variables
-- Component states
-- Events and actions
-- Navigation
-- Modal and drawer state
-- Forms
-- Interactive preview mode
+- `v0.1.0` Foundation
+- `v0.2.0` Local Projects
+- `v0.3.0` Editor Shell
+- `v0.4.0` Layout Editing
+- `v0.5.0` Design System
+- `v0.6.0` Runtime & Interactive Preview
 
-### Later milestones
+### Next
 
-- React + TypeScript + Tailwind export
-- Structured AI generation and editing
-- AI change review
-- UX audit
-- Accessibility audit
-- Diagnostics and performance tooling
+`v0.7.0` will focus on production-oriented export, beginning with React + TypeScript + Tailwind and preserving the structured project model as the source.
 
-## Product direction
-
-UI Creator is intended to become a **local interface engineering environment** that connects:
-
-```text
-Idea
- ↓
-Structure
- ↓
-Design System
- ↓
-Interface
- ↓
-Interaction
- ↓
-Validation
- ↓
-Preview
- ↓
-Production Code
-```
-
-The goal is not to replace general-purpose graphics tools. The focus is structured interfaces that remain editable, testable, reversible, and technically useful.
+Later milestones cover structured AI editing, change review, accessibility/UX audits, diagnostics, and release hardening.
 
 ## Development status
 
-The project is pre-`1.0` and under active development. Public contracts and project schemas may evolve until the stable release, with migrations added where appropriate.
+UI Creator is pre-`1.0`. Public contracts and project schemas can still evolve, with explicit migrations added when persisted data changes.

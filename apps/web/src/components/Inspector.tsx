@@ -1,5 +1,5 @@
-import type { ChangeEvent } from "react";
-import type { NodeStyle, ProjectDocument, ProjectNode, TokenOrValue } from "../types";
+import { useState, type ChangeEvent } from "react";
+import type { Interaction, InteractionAction, InteractionEvent, NodeStyle, ProjectDocument, ProjectNode, TokenOrValue } from "../types";
 import { literal } from "../editor";
 
 interface Props {
@@ -10,6 +10,8 @@ interface Props {
   onDelete(): void;
   onDuplicate(): void;
   onCreateReusable(): void;
+  onUpsertInteraction(interaction: Interaction): void;
+  onDeleteInteraction(interactionId: string): void;
 }
 
 function valueAsString(value: unknown): string { return value === null || value === undefined ? "" : String(value); }
@@ -27,7 +29,11 @@ function StyleValueField({ label, value, tokens, onChange }: { label: string; va
   );
 }
 
-export function Inspector({ project, node, activeBreakpointId, onUpdate, onDelete, onDuplicate, onCreateReusable }: Props) {
+export function Inspector({ project, node, activeBreakpointId, onUpdate, onDelete, onDuplicate, onCreateReusable, onUpsertInteraction, onDeleteInteraction }: Props) {
+  const [runtimeEvent, setRuntimeEvent] = useState<InteractionEvent>("click");
+  const [runtimeAction, setRuntimeAction] = useState<InteractionAction["type"]>("toggle");
+  const [runtimeTarget, setRuntimeTarget] = useState("");
+  const [runtimeValue, setRuntimeValue] = useState("");
   if (!node) {
     return <aside className="inspector-panel" aria-label="Inspector"><div className="panel-header"><span>Inspector</span><span className="status-pill">Design System</span></div><div className="empty-state inspector-empty"><strong>No selection</strong><span>Select a layer on the canvas or in the layer tree.</span></div></aside>;
   }
@@ -90,6 +96,15 @@ export function Inspector({ project, node, activeBreakpointId, onUpdate, onDelet
   const typographyTokens = tokenIds.filter(id => project.tokens[id]?.category === "typography");
   const textProp = node.type === "text" || node.type === "button" ? "text" : node.type === "input" ? "placeholder" : null;
   const scope = activeBreakpointId ? `${activeBreakpointId} override` : isInstance ? "Component instance override" : "Base style";
+  const nodeInteractions = Object.values(project.interactions).filter(interaction => interaction.sourceNodeId === node.id).sort((a, b) => a.id.localeCompare(b.id));
+  const createInteraction = () => {
+    const id = `interaction-${node.id}-${runtimeEvent}`;
+    let payload: Record<string, unknown> = {};
+    if (runtimeAction === "navigate") payload = { pageId: runtimeTarget };
+    else if (runtimeAction === "setVariable" || runtimeAction === "updateVariable") payload = runtimeAction === "updateVariable" ? { variableId: runtimeTarget, operation: runtimeValue || "toggle" } : { variableId: runtimeTarget, value: runtimeValue };
+    else if (["open", "close", "toggle", "focus", "scrollTo", "submit"].includes(runtimeAction)) payload = { targetNodeId: runtimeTarget };
+    onUpsertInteraction({ id, sourceNodeId: node.id, event: runtimeEvent, actions: [{ type: runtimeAction, payload }] });
+  };
 
   return (
     <aside className="inspector-panel" aria-label="Inspector">
@@ -142,6 +157,17 @@ export function Inspector({ project, node, activeBreakpointId, onUpdate, onDelet
           <StyleValueField label="Background" value={activeStyle.background} tokens={colorTokens} onChange={value => setStyleValue("background", value)}/>
           <StyleValueField label="Radius" value={activeStyle.borderRadius} tokens={radiusTokens} onChange={value => setStyleValue("borderRadius", value)}/>
           {!activeBreakpointId ? <div className="toggle-row"><label><input type="checkbox" checked={node.visible} onChange={event => onUpdate({ visible: event.target.checked })}/> Visible</label><label><input type="checkbox" checked={node.locked} onChange={event => onUpdate({ locked: event.target.checked })}/> Locked</label></div> : null}
+        </section>
+
+        <section className="inspector-section">
+          <div className="section-title">Runtime interactions</div>
+          {nodeInteractions.length === 0 ? <div className="compact-empty">No interactions on this node.</div> : <div className="interaction-list">{nodeInteractions.map(interaction => <div key={interaction.id} className="interaction-row"><div><strong>{interaction.event}</strong><span>{interaction.actions.map(action => action.type).join(" → ")}</span></div><button type="button" className="compact-danger" onClick={() => onDeleteInteraction(interaction.id)}>×</button></div>)}</div>}
+          <div className="interaction-editor">
+            <select value={runtimeEvent} onChange={event => setRuntimeEvent(event.target.value as InteractionEvent)}><option value="click">click</option><option value="change">change</option><option value="submit">submit</option><option value="focus">focus</option></select>
+            <select value={runtimeAction} onChange={event => { setRuntimeAction(event.target.value as InteractionAction["type"]); setRuntimeTarget(""); setRuntimeValue(""); }}><option value="toggle">toggle</option><option value="open">open</option><option value="close">close</option><option value="navigate">navigate</option><option value="setVariable">setVariable</option><option value="updateVariable">updateVariable</option><option value="focus">focus</option><option value="scrollTo">scrollTo</option><option value="submit">submit</option><option value="reset">reset</option></select>
+            {runtimeAction === "navigate" ? <select value={runtimeTarget} onChange={event => setRuntimeTarget(event.target.value)}><option value="">Target page</option>{Object.values(project.pages).map(page => <option key={page.id} value={page.id}>{page.name}</option>)}</select> : runtimeAction === "setVariable" || runtimeAction === "updateVariable" ? <><select value={runtimeTarget} onChange={event => setRuntimeTarget(event.target.value)}><option value="">Variable</option>{Object.values(project.variables).map(variable => <option key={variable.id} value={variable.id}>{variable.name}</option>)}</select><input value={runtimeValue} placeholder={runtimeAction === "updateVariable" ? "toggle / increment / decrement" : "Value"} onChange={event => setRuntimeValue(event.target.value)}/></> : runtimeAction === "reset" ? null : <select value={runtimeTarget} onChange={event => setRuntimeTarget(event.target.value)}><option value="">Target node</option>{Object.values(project.nodes).map(target => <option key={target.id} value={target.id}>{target.name}</option>)}</select>}
+            <button type="button" onClick={createInteraction} disabled={runtimeAction !== "reset" && !runtimeTarget}>Save interaction</button>
+          </div>
         </section>
       </div>
     </aside>

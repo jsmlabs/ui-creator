@@ -105,8 +105,29 @@ export function validateProject(project: Project): ValidationResult {
     validateNodeReferences(project, node, issues);
   }
 
-  for (const interaction of Object.values(project.interactions)) {
+  const validEvents = new Set(["click", "change", "submit", "focus"]);
+  const validActions = new Set(["navigate", "open", "close", "toggle", "setVariable", "updateVariable", "submit", "reset", "focus", "scrollTo"]);
+  for (const [interactionId, interaction] of Object.entries(project.interactions)) {
+    if (interaction.id !== interactionId) issues.push(error("INTERACTION_KEY_ID_MISMATCH", `Interaction key ${interactionId} does not match interaction id ${interaction.id}.`, `interactions.${interactionId}.id`));
     if (!project.nodes[interaction.sourceNodeId]) issues.push(error("INTERACTION_SOURCE_NOT_FOUND", `Interaction ${interaction.id} references missing source node ${interaction.sourceNodeId}.`, `interactions.${interaction.id}.sourceNodeId`));
+    if (!validEvents.has(interaction.event)) issues.push(error("INVALID_INTERACTION_EVENT", `Interaction ${interaction.id} has unsupported event ${String(interaction.event)}.`, `interactions.${interaction.id}.event`));
+    interaction.actions.forEach((action, index) => {
+      if (!validActions.has(action.type)) issues.push(error("INVALID_INTERACTION_ACTION", `Interaction ${interaction.id} has unsupported action ${String(action.type)}.`, `interactions.${interaction.id}.actions.${index}`));
+      const variableId = action.payload.variableId;
+      if ((action.type === "setVariable" || action.type === "updateVariable") && (typeof variableId !== "string" || !project.variables[variableId])) issues.push(error("RUNTIME_VARIABLE_NOT_FOUND", `Interaction ${interaction.id} references missing runtime variable ${String(variableId)}.`, `interactions.${interaction.id}.actions.${index}.payload.variableId`));
+      const pageId = action.payload.pageId;
+      if (action.type === "navigate" && (typeof pageId !== "string" || !project.pages[pageId])) issues.push(error("NAVIGATION_PAGE_NOT_FOUND", `Interaction ${interaction.id} references missing page ${String(pageId)}.`, `interactions.${interaction.id}.actions.${index}.payload.pageId`));
+      const targetNodeId = action.payload.targetNodeId;
+      if (["open", "close", "toggle", "focus", "scrollTo"].includes(action.type) && (typeof targetNodeId !== "string" || !project.nodes[targetNodeId])) issues.push(error("ACTION_TARGET_NOT_FOUND", `Interaction ${interaction.id} references missing target node ${String(targetNodeId)}.`, `interactions.${interaction.id}.actions.${index}.payload.targetNodeId`));
+    });
+  }
+
+  const validVariableTypes = new Set(["string", "number", "boolean"]);
+  for (const [variableId, variable] of Object.entries(project.variables)) {
+    if (variable.id !== variableId) issues.push(error("VARIABLE_KEY_ID_MISMATCH", `Variable key ${variableId} does not match variable id ${variable.id}.`, `variables.${variableId}.id`));
+    if (!variable.name.trim()) issues.push(error("VARIABLE_NAME_REQUIRED", `Runtime variable ${variableId} requires a name.`, `variables.${variableId}.name`));
+    if (!validVariableTypes.has(variable.type)) issues.push(error("INVALID_VARIABLE_TYPE", `Runtime variable ${variableId} has unsupported type ${String(variable.type)}.`, `variables.${variableId}.type`));
+    if (typeof variable.initialValue !== variable.type) issues.push(error("VARIABLE_VALUE_TYPE_MISMATCH", `Runtime variable ${variableId} initial value does not match type ${variable.type}.`, `variables.${variableId}.initialValue`));
   }
 
   for (const [breakpointId, value] of Object.entries(project.settings.breakpoints)) {

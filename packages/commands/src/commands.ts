@@ -1,5 +1,5 @@
 import { clone, createId } from "../../shared/src/index.js";
-import type { ComponentDefinition, DesignToken, Page, Project, Theme, UINode } from "../../schema/src/index.js";
+import type { ComponentDefinition, DesignToken, Interaction, Page, Project, RuntimeVariable, Theme, UINode } from "../../schema/src/index.js";
 import { validateProjectOrThrow } from "../../validation/src/index.js";
 import { CommandExecutionError, type Command, type CommandResult } from "./types.js";
 
@@ -429,5 +429,62 @@ export class DeleteComponentDefinitionCommand implements Command {
     delete next.components[this.componentId];
     for (const id of Object.keys(nodes)) delete next.nodes[id];
     return withValidation(next, new RestoreComponentDefinitionCommand({ definition: clone(definition), nodes }));
+  }
+}
+
+
+export class UpsertRuntimeVariableCommand implements Command {
+  readonly type = "upsertRuntimeVariable";
+  constructor(private readonly variable: RuntimeVariable) {}
+  execute(project: Project): CommandResult {
+    if (!this.variable.id.trim()) throw new CommandExecutionError("Runtime variable id is required.");
+    if (!this.variable.name.trim()) throw new CommandExecutionError("Runtime variable name is required.");
+    const previous = project.variables[this.variable.id];
+    const next = clone(project);
+    next.variables[this.variable.id] = clone(this.variable);
+    return withValidation(next, previous ? new UpsertRuntimeVariableCommand(clone(previous)) : new DeleteRuntimeVariableCommand(this.variable.id));
+  }
+}
+
+export class DeleteRuntimeVariableCommand implements Command {
+  readonly type = "deleteRuntimeVariable";
+  constructor(private readonly variableId: string) {}
+  execute(project: Project): CommandResult {
+    const previous = project.variables[this.variableId];
+    if (!previous) throw new CommandExecutionError(`Runtime variable ${this.variableId} does not exist.`);
+    for (const interaction of Object.values(project.interactions)) {
+      for (const action of interaction.actions) {
+        if ((action.type === "setVariable" || action.type === "updateVariable") && action.payload.variableId === this.variableId) {
+          throw new CommandExecutionError(`Runtime variable ${this.variableId} is still referenced by interaction ${interaction.id}.`);
+        }
+      }
+    }
+    const next = clone(project);
+    delete next.variables[this.variableId];
+    return withValidation(next, new UpsertRuntimeVariableCommand(clone(previous)));
+  }
+}
+
+export class UpsertInteractionCommand implements Command {
+  readonly type = "upsertInteraction";
+  constructor(private readonly interaction: Interaction) {}
+  execute(project: Project): CommandResult {
+    if (!this.interaction.id.trim()) throw new CommandExecutionError("Interaction id is required.");
+    const previous = project.interactions[this.interaction.id];
+    const next = clone(project);
+    next.interactions[this.interaction.id] = clone(this.interaction);
+    return withValidation(next, previous ? new UpsertInteractionCommand(clone(previous)) : new DeleteInteractionCommand(this.interaction.id));
+  }
+}
+
+export class DeleteInteractionCommand implements Command {
+  readonly type = "deleteInteraction";
+  constructor(private readonly interactionId: string) {}
+  execute(project: Project): CommandResult {
+    const previous = project.interactions[this.interactionId];
+    if (!previous) throw new CommandExecutionError(`Interaction ${this.interactionId} does not exist.`);
+    const next = clone(project);
+    delete next.interactions[this.interactionId];
+    return withValidation(next, new UpsertInteractionCommand(clone(previous)));
   }
 }

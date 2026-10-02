@@ -1,4 +1,4 @@
-export const CURRENT_SCHEMA_VERSION = 2 as const;
+export const CURRENT_SCHEMA_VERSION = 3 as const;
 export type ProjectSchemaVersion = typeof CURRENT_SCHEMA_VERSION;
 export type StylePrimitive = string | number | boolean | null;
 
@@ -57,12 +57,21 @@ export interface DesignToken {
   value: StylePrimitive;
 }
 export interface Theme { id: string; name: string; tokenOverrides: Record<string, StylePrimitive>; }
-export interface RuntimeVariable { id: string; name: string; value: unknown; }
+
+export type RuntimeVariableType = "string" | "number" | "boolean";
+export interface RuntimeVariable {
+  id: string;
+  name: string;
+  type: RuntimeVariableType;
+  initialValue: string | number | boolean;
+}
+export type InteractionEvent = "click" | "change" | "submit" | "focus";
+export type RuntimeActionType = "navigate" | "open" | "close" | "toggle" | "setVariable" | "updateVariable" | "submit" | "reset" | "focus" | "scrollTo";
 export interface InteractionAction {
-  type: "navigate" | "open" | "close" | "toggle" | "setVariable" | "updateVariable" | "submit" | "reset" | "focus" | "scrollTo";
+  type: RuntimeActionType;
   payload: Record<string, unknown>;
 }
-export interface Interaction { id: string; sourceNodeId: string; event: string; actions: InteractionAction[]; }
+export interface Interaction { id: string; sourceNodeId: string; event: InteractionEvent; actions: InteractionAction[]; }
 export interface AssetReference { id: string; path: string; mimeType: string; size: number; }
 export interface ProjectMetadata { createdAt: string; updatedAt: string; }
 export interface ProjectSettings { activeThemeId: string | null; breakpoints: Record<string, number>; }

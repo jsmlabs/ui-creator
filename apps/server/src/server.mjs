@@ -44,7 +44,7 @@ export function createLocalServer({ repository, recentProjects }) {
       const parts = url.pathname.split("/").filter(Boolean).map(decodeURIComponent);
 
       if (method === "GET" && url.pathname === "/api/v1/health") {
-        return json(res, 200, { ok: true, data: { ready: true, version: "0.5.0" } });
+        return json(res, 200, { ok: true, data: { ready: true, version: "0.6.0" } });
       }
 
       if (method === "GET" && url.pathname === "/api/v1/projects") {

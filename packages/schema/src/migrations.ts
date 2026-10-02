@@ -12,10 +12,7 @@ const migration1To2: Migration = {
     const tokens = typeof next.tokens === "object" && next.tokens !== null ? next.tokens as Record<string, unknown> : {};
     const themes = typeof next.themes === "object" && next.themes !== null ? next.themes as Record<string, unknown> : {};
     const settings = typeof next.settings === "object" && next.settings !== null ? next.settings as Record<string, unknown> : {};
-    const breakpoints = typeof settings.breakpoints === "object" && settings.breakpoints !== null
-      ? settings.breakpoints as Record<string, unknown>
-      : {};
-
+    const breakpoints = typeof settings.breakpoints === "object" && settings.breakpoints !== null ? settings.breakpoints as Record<string, unknown> : {};
     next.tokens = { ...structuredClone(DEFAULT_TOKENS), ...tokens };
     next.themes = { ...structuredClone(DEFAULT_THEMES), ...themes };
     settings.breakpoints = { ...DEFAULT_BREAKPOINTS, ...breakpoints };
@@ -25,7 +22,29 @@ const migration1To2: Migration = {
   }
 };
 
-const migrations: Migration[] = [migration1To2];
+const migration2To3: Migration = {
+  from: 2,
+  to: 3,
+  migrate(input) {
+    const next = structuredClone(input);
+    const variables = typeof next.variables === "object" && next.variables !== null ? next.variables as Record<string, any> : {};
+    const migratedVariables: Record<string, unknown> = {};
+    for (const [id, variable] of Object.entries(variables)) {
+      if (!variable || typeof variable !== "object") continue;
+      if ("initialValue" in variable && "type" in variable) migratedVariables[id] = variable;
+      else {
+        const value = variable.value;
+        const type = typeof value === "number" ? "number" : typeof value === "boolean" ? "boolean" : "string";
+        migratedVariables[id] = { id, name: typeof variable.name === "string" ? variable.name : id, type, initialValue: value ?? "" };
+      }
+    }
+    next.variables = migratedVariables;
+    if (!next.interactions || typeof next.interactions !== "object") next.interactions = {};
+    return next;
+  }
+};
+
+const migrations: Migration[] = [migration1To2, migration2To3];
 
 export class UnsupportedSchemaVersionError extends Error {
   constructor(version: unknown) {

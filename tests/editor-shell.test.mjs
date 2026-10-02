@@ -8,10 +8,11 @@ const canvasPath = new URL("../apps/web/src/components/Canvas.tsx", import.meta.
 const inspectorPath = new URL("../apps/web/src/components/Inspector.tsx", import.meta.url);
 const vitePath = new URL("../apps/web/vite.config.ts", import.meta.url);
 const editorPath = new URL("../apps/web/src/editor.ts", import.meta.url);
+const previewPath = new URL("../apps/web/src/components/Preview.tsx", import.meta.url);
 
-test("editor shell source preserves local architecture while enabling Milestone 4 design-system editing", async () => {
-  const [app, sidebar, canvas, inspector, vite] = await Promise.all([
-    readFile(appPath, "utf8"), readFile(sidebarPath, "utf8"), readFile(canvasPath, "utf8"), readFile(inspectorPath, "utf8"), readFile(vitePath, "utf8")
+test("editor shell source preserves local architecture while enabling Milestone 5 runtime editing", async () => {
+  const [app, sidebar, canvas, inspector, vite, preview] = await Promise.all([
+    readFile(appPath, "utf8"), readFile(sidebarPath, "utf8"), readFile(canvasPath, "utf8"), readFile(inspectorPath, "utf8"), readFile(vitePath, "utf8"), readFile(previewPath, "utf8")
   ]);
 
   assert.match(app, /<Sidebar/);
@@ -50,7 +51,16 @@ test("editor shell source preserves local architecture while enabling Milestone 
   assert.match(app, /DeleteThemeCommand/);
   assert.match(app, /DeleteBreakpointCommand/);
   assert.match(app, /DeleteComponentDefinitionCommand/);
-  assert.match(app, /Schema v2/);
+  assert.match(app, /Schema v3/);
+  assert.match(app, /UpsertRuntimeVariableCommand/);
+  assert.match(app, /UpsertInteractionCommand/);
+  assert.match(app, /<Preview/);
+  assert.match(sidebar, /Runtime/);
+  assert.match(sidebar, /Variables/);
+  assert.match(inspector, /Runtime interactions/);
+  assert.match(preview, /Interactive Preview/);
+  assert.match(preview, /createRuntimeState/);
+  assert.match(preview, /executeInteraction/);
   assert.match(sidebar, /New theme name/);
   assert.match(sidebar, /token-create-expanded/);
   assert.match(sidebar, /onDeleteBreakpoint/);

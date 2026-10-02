@@ -116,7 +116,7 @@ test("HTTP API supports health and project CRUD", async () => {
       assert.equal(response.status, 200);
       const health = (await response.json()).data;
       assert.equal(health.ready, true);
-      assert.equal(health.version, "0.5.0");
+      assert.equal(health.version, "0.6.0");
 
       response = await fetch(`${base}/projects`, {
         method: "POST",

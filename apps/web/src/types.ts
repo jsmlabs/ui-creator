@@ -6,7 +6,12 @@ export type {
   TokenOrValue,
   DesignToken,
   Theme,
-  ComponentDefinition
+  ComponentDefinition,
+  RuntimeVariable,
+  RuntimeVariableType,
+  Interaction,
+  InteractionAction,
+  InteractionEvent
 } from "../../../packages/schema/src/types";
 
 export interface ProjectSummary { id: string; name: string; updatedAt?: string; }

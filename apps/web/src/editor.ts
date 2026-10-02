@@ -8,7 +8,12 @@ export const componentTemplates = [
   { type: "grid", label: "Grid" },
   { type: "text", label: "Text" },
   { type: "button", label: "Button" },
-  { type: "input", label: "Input" }
+  { type: "input", label: "Input" },
+  { type: "form", label: "Form" },
+  { type: "modal", label: "Modal" },
+  { type: "drawer", label: "Drawer" },
+  { type: "toggle", label: "Toggle" },
+  { type: "tabs", label: "Tabs" }
 ] as const;
 
 export function literal(value: StylePrimitive): TokenOrValue { return { kind: "literal", value }; }
@@ -37,6 +42,21 @@ export function createComponentNode(type: string): UINode {
   } else if (type === "input") {
     base.props = { placeholder: "Input" };
     base.style = { padding: literal("10px 12px"), borderRadius: token("radius.md"), background: token("color.surface.control"), color: token("color.text.primary") };
+  } else if (type === "form") {
+    base.style = { display: "flex", gap: token("spacing.sm"), padding: token("spacing.md") };
+    base.props = { direction: "column" };
+  } else if (type === "modal") {
+    base.style = { display: "flex", gap: token("spacing.sm"), padding: token("spacing.md"), background: token("color.surface.control"), borderRadius: token("radius.md") };
+    base.props = { direction: "column" };
+  } else if (type === "drawer") {
+    base.style = { display: "flex", gap: token("spacing.sm"), padding: token("spacing.md"), background: token("color.surface.control") };
+    base.props = { direction: "column" };
+  } else if (type === "toggle") {
+    base.props = { label: "Toggle" };
+    base.style = { padding: literal("8px 12px"), borderRadius: token("radius.md"), background: token("color.surface.control"), color: token("color.text.primary") };
+  } else if (type === "tabs") {
+    base.props = { activeTab: "Tab 1" };
+    base.style = { display: "flex", gap: token("spacing.sm"), padding: token("spacing.sm") };
   }
   return base;
 }
@@ -127,7 +147,7 @@ export function getComponentRoot(project: Project, instance: UINode): UINode | n
 }
 
 export function canAcceptChildren(node: UINode): boolean {
-  return !node.componentRef && (node.type === "container" || node.type === "stack" || node.type === "grid");
+  return !node.componentRef && ["container", "stack", "grid", "form", "modal", "drawer", "tabs"].includes(node.type);
 }
 
 export function getDefaultParent(project: Project, selectedNodeId: string | null, activePageId: string | null): string | null {
